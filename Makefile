@@ -10,7 +10,7 @@ else
 endif
 
 $(OUT): main.rs
-	rustc --edition 2021 -g -C opt-level=z -C link-args=$(ARGS) -C panic="abort" main.rs -o $(OUT)
+	/home/anon/dev/github/rust/build/x86_64-unknown-linux-gnu/stage1/bin/rustc --edition 2021 -g -C opt-level=z -C link-args=$(ARGS) -C panic="abort" main.rs -o $(OUT)
 
 clean:
 	rm -f main

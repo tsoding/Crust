@@ -6,8 +6,12 @@ use core::panic::PanicInfo;
 use core::mem::zeroed;
 use libc::*;
 
+// NOTE: Haven't figured out how to not need this yet
+#[no_mangle]
+pub extern "C" fn rust_eh_personality() {}
+
 #[panic_handler]
-unsafe fn panic(info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
     // TODO: What's the best way to implement the panic handler within the Crust spirit
     //   PanicInfo must be passed by reference.
     if let Some(location) = info.location() {
@@ -75,9 +79,9 @@ pub mod libc {
     pub type FILE = c_void;
 
     extern "C" {
-        pub static stdin: *mut FILE;
-        pub static stdout: *mut FILE;
-        pub static stderr: *mut FILE;
+        pub static stdin: *FILE;
+        pub static stdout: *FILE;
+        pub static stderr: *FILE;
     }
 
     #[macro_export]
@@ -86,7 +90,7 @@ pub mod libc {
             use core::ffi::c_int;
             extern "C" {
                 #[link_name = "fprintf"]
-                pub fn fprintf_raw(stream: *mut libc::FILE, fmt: *const c_char, ...) -> c_int;
+                pub fn fprintf_raw(stream: *libc::FILE, fmt: *const c_char, ...) -> c_int;
             }
             fprintf_raw($stream, $fmt.as_ptr() $($args)*)
         }};
@@ -108,20 +112,20 @@ pub mod libc {
         pub fn abort() -> !;
     }
 
-    pub unsafe fn realloc_items<T>(ptr: *mut T, count: usize) -> *mut T {
+    pub fn realloc_items<T>(ptr: *T, count: usize) -> *T {
         extern "C" {
             #[link_name = "realloc"]
-            fn realloc_raw(ptr: *mut c_void, size: usize) -> *mut c_void;
+            fn realloc_raw(ptr: *c_void, size: usize) -> *mut c_void;
         }
-        realloc_raw(ptr as *mut c_void, size_of::<T>()*count) as *mut T
+        realloc_raw(ptr as *c_void, size_of::<T>()*count) as *T
     }
 
-    pub unsafe fn free<T>(ptr: *mut T) {
+    pub fn free<T>(ptr: *T) {
         extern "C" {
             #[link_name = "free"]
-            fn free_raw(ptr: *mut c_void);
+            fn free_raw(ptr: *c_void);
         }
-        free_raw(ptr as *mut c_void);
+        free_raw(ptr as *c_void);
     }
 }
 
@@ -132,12 +136,12 @@ pub mod da { // Dynamic Arrays in Crust
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct Array<T> {
-        pub items: *mut T,
+        pub items: *T,
         pub count: usize,
         pub capacity: usize,
     }
 
-    pub unsafe fn da_append<T>(da: *mut Array<T>, item: T) {
+    pub fn da_append<T>(da: *Array<T>, item: T) {
         if (*da).count >= (*da).capacity {
             if (*da).capacity == 0 {
                 (*da).capacity = 256;
@@ -150,7 +154,7 @@ pub mod da { // Dynamic Arrays in Crust
         (*da).count += 1;
     }
 
-    pub unsafe fn da_destroy<T>(da: *mut Array<T>) {
+    pub fn da_destroy<T>(da: *Array<T>) {
         libc::free((*da).items);
         (*da).items = ptr::null_mut();
         (*da).count = 0;
@@ -166,7 +170,7 @@ pub struct Rect {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
+pub extern "C" fn main(_argc: i32, _argv: **u8) -> i32 {
     use core::ffi::c_float;
     use raylib::*;
     use raymath::*;
@@ -175,7 +179,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     const BACKGROUND: Color = Color {r: 0x18, g: 0x18, b: 0x18, a: 255};
     const RECT_SIZE: Vector2 = Vector2 { x: 100.0, y: 100.0 };
 
-    let mut rects: Array<Rect> = zeroed();
+    let rects: Array<Rect> = zeroed();
     da_append(&mut rects, Rect {
         position: Vector2 { x: 0.0, y: 0.0 },
         velocity: Vector2 { x: 100.0, y: 100.0 },
