@@ -26,7 +26,7 @@ Raw pointers instead of references must be used for:
 2. Members of user-made structs and enums;
 3. User-made global variables;
 
-In the bodies of the functions references are allowed to be used for local variables and intermediate variables.
+In the bodies of the functions references are allowed to be used for local variables and intermediate value.
 
 ## 4. No cargo.
 
